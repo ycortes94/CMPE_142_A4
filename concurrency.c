@@ -5,8 +5,13 @@
 #include <stdlib.h>
 #include "common.h"
 #include "common_threads.h"
-#include "zemaphore.h"
 // branch created
+
+#ifdef linux
+#include <semaphore.h>
+#elif __APPLE__
+#include "zemaphore.h"
+#endif
 
 int max;
 int loops;
