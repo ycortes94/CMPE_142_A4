@@ -1,140 +1,83 @@
-#include <stdio.h>
-#include <unistd.h>
-#include <assert.h>
-#include <pthread.h>
-#include <stdlib.h>
-#include "common.h"
-#include "common_threads.h"
-// branch created
+#include <stdio.h>		// Standard Input-Output
+#include <stdlib.h>		// Standard Functoins
+#include <pthread.h>	// Threading Library
+#define BUFFER 2		// Max BufferSize 
 
-#ifdef linux
-#include <semaphore.h>
-#elif __APPLE__
-#include "zemaphore.h"
-#endif
+int buffer = 0;
 
-int max;
-int loops;
-int *buffer;
+pthread_mutex_t mutex=PTHREAD_MUTEX_INITIALIZER;	// mutex lock to avoid race conditions
 
-int use = 0;
-int fill = 0;
-
-sem_t empty;
-sem_t full;
-sem_t mutex;
-
-#define CMAX (10)
-int consumers = 1;
-
-void do_fill(int value)
-{
-	buffer[fill] = value;
-	fill++;
-	if (fill == max)
-		fill = 0;
-}
-
-int do_get()
-{
-	int tmp = buffer[use];
-	use++;
-	if (use == max)
-		use = 0;
-	return tmp;
-}
-
-void *producer(void *arg)
-{
-	int i;
-	for (i = 0; i < loops; i++)
-	{
-		Sem_wait(&empty);
-		Sem_wait(&mutex);
-		do_fill(i);
-		Sem_post(&mutex);
-		Sem_post(&full);
+void *producer(void *vargp){						// Producer Thread Function
+	int my = (int)vargp;
+	while(1){
+		pthread_mutex_lock(&mutex);		// Check if resource is free.
+		if(buffer < BUFFER){			// Check if the buffer is not full.
+			buffer++;
+			printf("Buffer Incremented^ \tby cook: %d \tCurrent Size: %d\n",(my+1),buffer );
+			//sleep(1);
+		}
+		else{
+			// printf("Buffer OVERFLOW \t\t\tCurrent Size: %d\n",buffer );
+		}
+		pthread_mutex_unlock(&mutex);	// free the resource.
 	}
-
-	// end case
-	for (i = 0; i < consumers; i++)
-	{
-		Sem_wait(&empty);
-		Sem_wait(&mutex);
-		do_fill(-1);
-		Sem_post(&mutex);
-		Sem_post(&full);
-	}
-
 	return NULL;
 }
 
-void *consumer(void *arg)
-{
-	int tmp = 0;
-	// int customer = (long long int) arg +1;
-	int count1, count2, count3 = 0;
-	while (tmp != -1)
-	{
-		Sem_wait(&full);
-		Sem_wait(&mutex);
-		tmp = do_get();
-		Sem_post(&mutex);
-		Sem_post(&empty);
-		if (arg == 0)
+void *consumer(void *vargp){						// Consumer Function
+	int my = (int)vargp;
+    int count1, count2, count3 = 0;
+	while(1){
+		pthread_mutex_lock(&mutex);		// Check if resource is free.
+		if(buffer > 0){					// Check if the buffer is not full.
+			buffer--;
+            if (my == 0)
 		{
 			count1++;
 		}
-		else if (arg == 1)
+		else if (my == 1)
 		{
 			count2++;
 		}
-		else if (arg == 2)
+		else if (my == 2)
 		{
 			count3++;
 		}
-		printf("Customer: %lld %d\n", (long long int)arg, tmp);
-	}
-	printf("Customer 1 ate: %d\n\n", count1);
+			printf("Buffer Decremented \tby Customer: %d \tCurrent Size: %d\n",(my+1),buffer );
+			// sleep(1);
+		}
+		else{
+			// printf("Buffer UNDERFLOW \t\t\tCurrent Size: %d\n",buffer );
+		}
+		pthread_mutex_unlock(&mutex);	// free the resource.
+    printf("Customer 1 ate: %d\n\n", count1);
 	printf("Customer 2 ate: %d\n\n", count2);
 	printf("Customer 3 ate: %d\n\n", count3);
-
+	}
 	return NULL;
 }
 
-int main(int argc, char *argv[])
-{
-	max = 1;	   //atoi(argv[1]); Number of Cooks
-	loops = 100;   //atoi(argv[2]);
-	consumers = 3; //atoi(argv[3]); Number of Customers
-	assert(consumers <= CMAX);
+int main(int argc, char const *argv[]){
+	// command line input.
+	const int cook = 1;//atoi(argv[1]);
+	const int customers = 3;//atoi(argv[2]);
+	pthread_t ptid[cook], ctid[customers];
 
-	buffer = (int *)malloc(max * sizeof(int));
-	assert(buffer != NULL);
-	int i;
-	for (i = 0; i < max; i++)
-	{
-		buffer[i] = 0;
+	int i ;
+	for (i = 0; i < cook; ++i){
+		pthread_create(&ptid[i], NULL, producer, (void *)i);		// initialise all the threads.
 	}
 
-	Sem_init(&empty, max); // max are empty
-	Sem_init(&full, 0);	// 0 are full
-	Sem_init(&mutex, 1);   // mutex
-	pthread_t pid, cid[CMAX];
-
-	Pthread_create(&pid, NULL, producer, NULL);
-
-	for (i = 0; i < consumers; i++)
-	{
-		Pthread_create(&cid[i], NULL, consumer, (void *)(long long int)i);
+	for (i = 0; i < customers; ++i){
+		pthread_create(&ctid[i], NULL, consumer, (void *)i);		// initialise all the threads.
 	}
 
-	Pthread_join(pid, NULL);
-
-	for (i = 0; i < consumers; i++)
-	{
-		Pthread_join(cid[i], NULL);
+	for (i = 0; i < cook; ++i){
+		pthread_join(ptid[i], NULL);
 	}
-
+	
+	for (i = 0; i < customers; ++i){
+		pthread_join(ctid[i], NULL);
+	}
 	return 0;
 }
