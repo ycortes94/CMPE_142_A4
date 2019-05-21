@@ -1,9 +1,12 @@
 #include <stdio.h>		// Standard Input-Output
 #include <stdlib.h>		// Standard Functoins
 #include <pthread.h>	// Threading Library
+#include <string.h>
 #define BUFFER 2		// Max BufferSize 
 
 int buffer = 0;
+int choice[2];
+//int quantity[2];
 
 pthread_mutex_t mutex=PTHREAD_MUTEX_INITIALIZER;	// mutex lock to avoid race conditions
 
@@ -13,7 +16,23 @@ void *producer(void *vargp){						// Producer Thread Function
 		pthread_mutex_lock(&mutex);		// Check if resource is free.
 		if(buffer < BUFFER){			// Check if the buffer is not full.
 			buffer++;
-			printf("Buffer Incremented^ \tby cook: %d \tCurrent Size: %d\n",(my+1),buffer );
+			char* food;
+			for(int i = 0; i < 2; i++) {
+				do {
+					choice[i] = (rand() % 3);
+					
+					if(choice[i] == 0)
+						food = "hamburger";
+					else if(choice[i] == 1)
+						food = "fries";
+					else
+						food = "soda";
+					
+					///quantity[i] = (rand() % 10);
+				} while(i > 0 && (choice[i] == choice[i-1]/* || quantity[i] == 0*/));
+				printf("The chef produced %s.\n", food);
+			}
+			printf("Buffer Incremented^ \tby Cook: %d \tCurrent Size: %d\n",(my+1),buffer);
 			//sleep(1);
 		}
 		else{
