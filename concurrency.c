@@ -82,9 +82,8 @@ void *consumer(void *vargp){						// Consumer Function
 }
 
 int main(int argc, char const *argv[]){
-	// command line input.
-	const int cook = 1;//atoi(argv[1]);
-	const int customers = 3;//atoi(argv[2]);
+	const int cook = 1;
+	const int customers = 3;
 	pthread_t ptid[cook], ctid[customers];
 
 	int i ;
